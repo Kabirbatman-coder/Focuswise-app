@@ -4,8 +4,12 @@ import * as dotenv from 'dotenv';
 import calendarRoutes from './routes/calendar';
 import authRoutes from './routes/auth';
 import aiRoutes from './routes/ai';
+import energyRoutes from './routes/energy';
+import schedulerRoutes from './routes/scheduler';
+import focusRoutes from './routes/focus';
 import { testConnection } from './services/supabaseService';
 import { startSupabaseTokenQueueWorker, getQueueStatus } from './services/supabaseTokenService';
+import { initializeCronJobs } from './services/cronService';
 
 dotenv.config();
 
@@ -28,6 +32,9 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/energy', energyRoutes);
+app.use('/api/scheduler', schedulerRoutes);
+app.use('/api/focus', focusRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('FocusWise Backend is running');
@@ -79,6 +86,10 @@ const initializeServices = async () => {
     console.log('[Startup] They will be processed automatically every 5 seconds');
   }
   
+  // Initialize cron jobs for auto-scheduling
+  console.log('[Startup] Initializing scheduled jobs...');
+  initializeCronJobs();
+  
   console.log('─'.repeat(60));
   console.log('[Startup] ✅ All services initialized');
   console.log('═'.repeat(60));
@@ -101,6 +112,14 @@ app.listen(PORT, () => {
   console.log(`[Server]   POST /api/ai/tasks`);
   console.log(`[Server]   PUT  /api/ai/tasks/:taskId`);
   console.log(`[Server]   DELETE /api/ai/tasks/:taskId`);
+  console.log(`[Server]   POST /api/energy/checkin`);
+  console.log(`[Server]   POST /api/energy/quick-checkin`);
+  console.log(`[Server]   GET  /api/energy/profile/:userId`);
+  console.log(`[Server]   GET  /api/energy/trends/:userId`);
+  console.log(`[Server]   GET  /api/energy/optimal-slots/:userId`);
+  console.log(`[Server]   POST /api/scheduler/run`);
+  console.log(`[Server]   GET  /api/scheduler/schedule/:userId`);
+  console.log(`[Server]   GET  /api/scheduler/summary/:userId`);
   console.log('─'.repeat(60));
   
   // Initialize services after server starts

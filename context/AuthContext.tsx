@@ -3,6 +3,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Platform } from 'react-native';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
 // Complete auth session for web
 WebBrowser.maybeCompleteAuthSession();
@@ -13,13 +14,26 @@ const CALENDAR_EVENTS_KEY = '@focuswise_calendar_events';
 
 // Your Google OAuth credentials
 const GOOGLE_CLIENT_ID_WEB = '919214418885-pf2ohdk52fburfhd9nt6ih3tvmt2dlfg.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID_ANDROID = '919214418885-r4tmdb0qrf5c6cnrj7hqc787aivjuuaj.apps.googleusercontent.com';
 
-// Google OAuth endpoints
+// Google OAuth endpoints (for web fallback)
 const discovery = {
   authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
   tokenEndpoint: 'https://oauth2.googleapis.com/token',
   revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
 };
+
+// Configure Google Sign-In for native platforms
+if (Platform.OS !== 'web') {
+  GoogleSignin.configure({
+    webClientId: GOOGLE_CLIENT_ID_WEB, // Required for getting access token
+    offlineAccess: true,
+    scopes: [
+      'https://www.googleapis.com/auth/calendar.readonly',
+      'https://www.googleapis.com/auth/calendar.events',
+    ],
+  });
+}
 
 interface CalendarEvent {
   id: string;
@@ -97,7 +111,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setCalendarEvents(JSON.parse(storedEvents));
         }
         
-        // Try to refresh/validate by fetching calendar
+        // Try to refresh token for native platforms
+        if (Platform.OS !== 'web') {
+          try {
+            const currentUser = await GoogleSignin.getCurrentUser();
+            if (currentUser) {
+              const tokens = await GoogleSignin.getTokens();
+              if (tokens.accessToken) {
+                setAccessToken(tokens.accessToken);
+                await AsyncStorage.setItem(AUTH_TOKEN_KEY, JSON.stringify({ accessToken: tokens.accessToken }));
+              }
+            }
+          } catch (e) {
+            console.log('[Auth] Could not refresh native token');
+          }
+        }
+        
+        // Try to sync calendar
         try {
           await syncCalendarWithToken(tokens.accessToken);
         } catch (e) {
@@ -111,33 +141,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const handleAuthSuccess = async (token: string) => {
+  const handleAuthSuccess = async (token: string, userInfo?: any) => {
     try {
       setAccessToken(token);
       
-      // Fetch user info directly from Google
-      console.log('[Auth] Fetching user info from Google...');
-      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      let finalUserInfo = userInfo;
       
-      if (!userInfoResponse.ok) {
-        throw new Error('Failed to fetch user info');
+      // Fetch user info if not provided
+      if (!finalUserInfo) {
+        console.log('[Auth] Fetching user info from Google...');
+        const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        
+        if (!userInfoResponse.ok) {
+          throw new Error('Failed to fetch user info');
+        }
+        
+        finalUserInfo = await userInfoResponse.json();
       }
       
-      const userInfo = await userInfoResponse.json();
-      console.log('[Auth] ✅ User authenticated:', userInfo.email);
+      console.log('[Auth] ✅ User authenticated:', finalUserInfo.email);
       
-      setUser(userInfo);
+      setUser(finalUserInfo);
       
       // Store credentials
       await AsyncStorage.setItem(AUTH_TOKEN_KEY, JSON.stringify({ accessToken: token }));
-      await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(userInfo));
+      await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(finalUserInfo));
       
       // Sync calendar immediately
       await syncCalendarWithToken(token);
       
-      Alert.alert('Success!', `Signed in as ${userInfo.email}`);
+      Alert.alert('Success!', `Signed in as ${finalUserInfo.email}`);
     } catch (error: any) {
       console.error('[Auth] Error handling auth success:', error);
       Alert.alert('Error', 'Failed to complete authentication');
@@ -190,20 +225,69 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const signIn = async (): Promise<void> => {
-    console.log('[Auth] Starting Google sign-in...');
-    
+  // Native sign-in using Google Sign-In SDK
+  const signInNative = async (): Promise<void> => {
     try {
-      // For web: use localhost redirect (Google allows this)
-      // For mobile: use focuswise:// scheme (requires native build, not Expo Go)
-      const redirectUri = Platform.OS === 'web' 
-        ? 'http://localhost:8081'
-        : AuthSession.makeRedirectUri({ scheme: 'focuswise', path: 'auth' });
+      console.log('[Auth] Starting native Google sign-in...');
       
-      console.log('[Auth] Platform:', Platform.OS);
-      console.log('[Auth] Redirect URI:', redirectUri);
+      // Check if already signed in
+      const currentUser = await GoogleSignin.getCurrentUser();
+      if (currentUser) {
+        await GoogleSignin.signOut();
+      }
       
-      // Build Google OAuth URL manually
+      // Check for Play Services
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      
+      // Sign in
+      const signInResult = await GoogleSignin.signIn();
+      console.log('[Auth] Sign in result:', signInResult.type);
+      
+      if (signInResult.type === 'success' && signInResult.data) {
+        // Get access token
+        const tokens = await GoogleSignin.getTokens();
+        
+        if (tokens.accessToken) {
+          console.log('[Auth] ✅ Got native access token!');
+          
+          const userInfo = {
+            id: signInResult.data.user.id,
+            email: signInResult.data.user.email,
+            name: signInResult.data.user.name,
+            given_name: signInResult.data.user.givenName,
+            family_name: signInResult.data.user.familyName,
+            picture: signInResult.data.user.photo,
+          };
+          
+          await handleAuthSuccess(tokens.accessToken, userInfo);
+        } else {
+          throw new Error('No access token received');
+        }
+      } else {
+        console.log('[Auth] Sign in cancelled or failed');
+      }
+    } catch (error: any) {
+      console.error('[Auth] Native sign in error:', error);
+      
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        console.log('[Auth] User cancelled sign in');
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        Alert.alert('Please wait', 'Sign in is already in progress');
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert('Error', 'Google Play Services is not available');
+      } else {
+        Alert.alert('Error', error.message || 'Sign in failed');
+      }
+    }
+  };
+
+  // Web sign-in using WebBrowser
+  const signInWeb = async (): Promise<void> => {
+    try {
+      console.log('[Auth] Starting web Google sign-in...');
+      
+      const redirectUri = 'http://localhost:8081';
+      
       const scopes = [
         'openid',
         'profile', 
@@ -221,47 +305,52 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         `include_granted_scopes=true&` +
         `prompt=consent`;
       
-      console.log('[Auth] Opening browser for authentication...');
-      
-      // Open browser and wait for redirect back
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
       
-      console.log('[Auth] Browser result type:', result.type);
-      
       if (result.type === 'success' && result.url) {
-        console.log('[Auth] Got redirect URL, extracting token...');
-        
-        // Extract access token from URL fragment
         const url = result.url;
-        let accessToken: string | null = null;
+        let extractedToken: string | null = null;
         
-        // Token is in the URL fragment (after #)
         if (url.includes('#')) {
           const fragment = url.split('#')[1];
           const params = new URLSearchParams(fragment);
-          accessToken = params.get('access_token');
+          extractedToken = params.get('access_token');
         }
         
-        if (accessToken) {
-          console.log('[Auth] ✅ Got access token!');
-          await handleAuthSuccess(accessToken);
+        if (extractedToken) {
+          console.log('[Auth] ✅ Got web access token!');
+          await handleAuthSuccess(extractedToken);
         } else {
-          console.error('[Auth] No access token in redirect URL');
-          Alert.alert('Error', 'Failed to get access token from Google');
+          Alert.alert('Error', 'Failed to get access token');
         }
-      } else if (result.type === 'cancel') {
-        console.log('[Auth] User cancelled authentication');
-      } else {
-        console.log('[Auth] Auth dismissed or failed');
       }
     } catch (error: any) {
-      console.error('[Auth] Sign in error:', error);
+      console.error('[Auth] Web sign in error:', error);
       Alert.alert('Error', error.message || 'Sign in failed');
+    }
+  };
+
+  const signIn = async (): Promise<void> => {
+    console.log('[Auth] Starting sign-in for platform:', Platform.OS);
+    
+    if (Platform.OS === 'web') {
+      await signInWeb();
+    } else {
+      await signInNative();
     }
   };
 
   const signOut = async (): Promise<void> => {
     console.log('[Auth] Signing out...');
+    
+    // Sign out from Google on native
+    if (Platform.OS !== 'web') {
+      try {
+        await GoogleSignin.signOut();
+      } catch (e) {
+        console.log('[Auth] Error signing out from Google:', e);
+      }
+    }
     
     setUser(null);
     setAccessToken(null);
@@ -281,6 +370,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (!accessToken) {
       console.warn('[Auth] Cannot sync: no access token');
       return [];
+    }
+    
+    // Try to get fresh token on native
+    if (Platform.OS !== 'web') {
+      try {
+        const currentUser = await GoogleSignin.getCurrentUser();
+        if (currentUser) {
+          const tokens = await GoogleSignin.getTokens();
+          if (tokens.accessToken && tokens.accessToken !== accessToken) {
+            setAccessToken(tokens.accessToken);
+            await AsyncStorage.setItem(AUTH_TOKEN_KEY, JSON.stringify({ accessToken: tokens.accessToken }));
+            return await syncCalendarWithToken(tokens.accessToken);
+          }
+        }
+      } catch (e) {
+        console.log('[Auth] Could not refresh token');
+      }
     }
     
     try {

@@ -1,9 +1,10 @@
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, Pressable, TouchableOpacity } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Dimensions, Pressable, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '@/context/AuthContext';
 import Animated, {
   Easing,
   FadeIn,
@@ -20,6 +21,9 @@ import Animated, {
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Circle } from 'react-native-svg';
 
 import { Colors, Typography, Spacing, BorderRadius } from '../../constants/theme';
+import { getApiUrl } from '../../constants/config';
+import { ScheduleCardSkeleton, HeroCardSkeleton } from '@/components/ui/LoadingSkeleton';
+import { NoScheduleEmpty } from '@/components/ui/EmptyState';
 
 // Create animated SVG Circle component for Reanimated
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -47,6 +51,28 @@ const ARC_SIZE = Math.min(SCREEN_WIDTH * 0.7, 260);
 const ARC_RADIUS = ARC_SIZE / 2 - 14;
 const ARC_CIRCUMFERENCE = 2 * Math.PI * ARC_RADIUS;
 const ARC_SWEEP = 0.75; // 270 degrees
+
+// Scheduled task from API
+interface ScheduledTask {
+  task: {
+    id: string;
+    title: string;
+    priority: string;
+    estimatedMinutes?: number;
+  };
+  scheduledStart: string;
+  scheduledEnd: string;
+  timePeriod: string;
+  reason: string;
+  energyMatch: 'excellent' | 'good' | 'fair' | 'poor';
+}
+
+interface DailySchedule {
+  scheduledTasks: ScheduledTask[];
+  unscheduledTasks: any[];
+  optimalSummary: string;
+  insights: string[];
+}
 
 const mockData: MockData = {
   userName: 'Kabir',
@@ -105,8 +131,88 @@ const mockData: MockData = {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
   const topTask = useMemo(() => mockData.tasks[0], []);
   const upNextTasks = useMemo(() => mockData.tasks.slice(1, 6), []);
+
+  // Schedule state
+  const [schedule, setSchedule] = useState<DailySchedule | null>(null);
+  const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
+  const [daySummary, setDaySummary] = useState<string>('');
+  const [hasFetched, setHasFetched] = useState(false);
+
+  const userId = user?.id || 'default_user';
+
+  // Fetch schedule - simplified to avoid dependency loops
+  const fetchSchedule = async () => {
+    if (!isAuthenticated) return;
+    
+    console.log('[Home] Fetching schedule for:', userId);
+    setIsLoadingSchedule(true);
+    try {
+      const response = await fetch(getApiUrl(`/api/scheduler/schedule/${userId}`), {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await response.json();
+      console.log('[Home] Schedule response:', data.success, data.schedule?.scheduledTasks?.length || 0, 'tasks');
+      if (data.success) {
+        setSchedule(data.schedule);
+      }
+    } catch (error) {
+      console.error('[Home] Error fetching schedule:', error);
+    } finally {
+      setIsLoadingSchedule(false);
+    }
+  };
+
+  // Fetch day summary
+  const fetchDaySummary = async () => {
+    if (!isAuthenticated) return;
+    
+    try {
+      const response = await fetch(getApiUrl(`/api/scheduler/summary/${userId}`));
+      const data = await response.json();
+      if (data.success) {
+        setDaySummary(data.summary);
+      }
+    } catch (error) {
+      console.error('[Home] Error fetching summary:', error);
+    }
+  };
+
+  // Recalculate schedule
+  const handleRecalculateSchedule = async () => {
+    console.log('[Home] Recalculating schedule...');
+    setIsLoadingSchedule(true);
+    try {
+      const response = await fetch(getApiUrl('/api/scheduler/run'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await response.json();
+      console.log('[Home] Recalculate response:', data.success);
+      if (data.success) {
+        setSchedule(data.schedule);
+        setDaySummary(data.schedule?.optimalSummary || '');
+      }
+    } catch (error) {
+      console.error('[Home] Error recalculating schedule:', error);
+    } finally {
+      setIsLoadingSchedule(false);
+    }
+  };
+
+  // Initial fetch - only once when authenticated
+  useEffect(() => {
+    if (isAuthenticated && !hasFetched) {
+      setHasFetched(true);
+      fetchSchedule();
+      fetchDaySummary();
+    }
+  }, [isAuthenticated, hasFetched]);
 
   // Ambient background "breathing" glow behind the focus metric
   const ambientOpacity = useSharedValue(0.35);
@@ -336,8 +442,10 @@ export default function HomeScreen() {
                     onPressOut={() => {
                       startFocusScale.value = withTiming(1, { duration: 80 });
                     }}
+                    onPress={() => router.push('/focus')}
                   >
                     <Animated.View style={[styles.primaryButton, startFocusStyle]}>
+                      <Ionicons name="shield" size={14} color={Colors.background.primary} style={{ marginRight: 4 }} />
                       <Text style={styles.primaryButtonText}>Start Focus</Text>
                     </Animated.View>
                   </Pressable>
@@ -347,13 +455,104 @@ export default function HomeScreen() {
           </Animated.View>
         </Animated.View>
 
+        {/* AI-Powered Daily Schedule */}
+        {isAuthenticated && (
+          <Animated.View
+            style={styles.sectionSpacing}
+            entering={FadeIn.duration(500).delay(150)}
+          >
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitleInRow}>Today's Smart Schedule</Text>
+              <TouchableOpacity 
+                onPress={handleRecalculateSchedule}
+                disabled={isLoadingSchedule}
+                style={styles.recalculateButton}
+              >
+                {isLoadingSchedule ? (
+                  <ActivityIndicator size="small" color={Colors.ai_chief.active_ring} />
+                ) : (
+                  <>
+                    <Ionicons name="refresh" size={14} color={Colors.ai_chief.active_ring} />
+                    <Text style={styles.recalculateText}>Recalculate</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Day Summary Card */}
+            {daySummary ? (
+              <View style={styles.summaryCard}>
+                <LinearGradient
+                  colors={['rgba(139, 92, 246, 0.15)', 'rgba(99, 102, 241, 0.05)']}
+                  style={styles.summaryGradient}
+                >
+                  <Ionicons name="sparkles" size={20} color="#8B5CF6" style={styles.summaryIcon} />
+                  <Text style={styles.summaryText}>{daySummary}</Text>
+                </LinearGradient>
+              </View>
+            ) : null}
+
+            {/* Scheduled Tasks */}
+            {schedule && schedule.scheduledTasks.length > 0 && (
+              <View style={styles.scheduledTasksContainer}>
+                {schedule.scheduledTasks.slice(0, 3).map((item, index) => (
+                  <View key={item.task.id || index} style={styles.scheduledTaskCard}>
+                    <View style={styles.scheduledTaskTime}>
+                      <Text style={styles.scheduledTimeText}>
+                        {new Date(item.scheduledStart).toLocaleTimeString('en-US', {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true,
+                        })}
+                      </Text>
+                      <View style={[
+                        styles.energyMatchDot,
+                        { backgroundColor: 
+                          item.energyMatch === 'excellent' ? '#10B981' :
+                          item.energyMatch === 'good' ? '#F59E0B' :
+                          item.energyMatch === 'fair' ? '#6B7280' : '#EF4444'
+                        }
+                      ]} />
+                    </View>
+                    <View style={styles.scheduledTaskContent}>
+                      <Text style={styles.scheduledTaskTitle} numberOfLines={1}>
+                        {item.task.title}
+                      </Text>
+                      <Text style={styles.scheduledTaskReason} numberOfLines={1}>
+                        {item.reason}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+                
+                {schedule.insights.length > 0 && (
+                  <View style={styles.insightBadge}>
+                    <Ionicons name="bulb" size={12} color="#F59E0B" />
+                    <Text style={styles.insightText}>{schedule.insights[0]}</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Empty state */}
+            {schedule && schedule.scheduledTasks.length === 0 && (
+              <View style={styles.emptyScheduleCard}>
+                <Ionicons name="calendar-outline" size={32} color={Colors.text.tertiary} />
+                <Text style={styles.emptyScheduleText}>
+                  No tasks scheduled yet. Add tasks and log your energy to get personalized scheduling!
+                </Text>
+              </View>
+            )}
+          </Animated.View>
+        )}
+
         {/* Up Next */}
         <Animated.View
           style={styles.sectionSpacing}
           entering={SlideInRight.duration(500).delay(200)}
         >
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Up Next</Text>
+            <Text style={styles.sectionTitleInRow}>Up Next</Text>
             <Text style={styles.sectionSubtitle}>Curated by your Chief of Staff</Text>
           </View>
           <ScrollView
@@ -544,6 +743,12 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semibold,
     marginBottom: Spacing.md,
   },
+  sectionTitleInRow: {
+    color: Colors.text.primary,
+    fontSize: Typography.sizes.h2,
+    fontWeight: Typography.weights.semibold,
+    // No marginBottom - handled by parent sectionHeaderRow
+  },
   heroCardOuter: {
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
@@ -611,6 +816,8 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.caption,
   },
   primaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.pill,
@@ -669,5 +876,108 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: Colors.text.tertiary,
+  },
+  
+  // Schedule section styles
+  recalculateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 199, 252, 0.1)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.pill,
+    gap: 4,
+  },
+  recalculateText: {
+    color: Colors.ai_chief.active_ring,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  summaryCard: {
+    borderRadius: BorderRadius.lg,
+    overflow: 'hidden',
+    marginBottom: Spacing.md,
+  },
+  summaryGradient: {
+    padding: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  summaryIcon: {
+    marginRight: Spacing.sm,
+    marginTop: 2,
+  },
+  summaryText: {
+    flex: 1,
+    color: Colors.text.primary,
+    fontSize: Typography.sizes.body - 1,
+    lineHeight: 22,
+  },
+  scheduledTasksContainer: {
+    gap: Spacing.sm,
+  },
+  scheduledTaskCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background.secondary,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+  },
+  scheduledTaskTime: {
+    alignItems: 'center',
+    marginRight: Spacing.md,
+    minWidth: 60,
+  },
+  scheduledTimeText: {
+    color: Colors.text.primary,
+    fontSize: Typography.sizes.body - 1,
+    fontWeight: '600',
+  },
+  energyMatchDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginTop: 4,
+  },
+  scheduledTaskContent: {
+    flex: 1,
+  },
+  scheduledTaskTitle: {
+    color: Colors.text.primary,
+    fontSize: Typography.sizes.body - 1,
+    fontWeight: Typography.weights.medium,
+  },
+  scheduledTaskReason: {
+    color: Colors.text.secondary,
+    fontSize: Typography.sizes.caption,
+    marginTop: 2,
+  },
+  insightBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.sm,
+    gap: 6,
+  },
+  insightText: {
+    flex: 1,
+    color: Colors.text.secondary,
+    fontSize: Typography.sizes.caption,
+  },
+  emptyScheduleCard: {
+    alignItems: 'center',
+    backgroundColor: Colors.background.secondary,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+  },
+  emptyScheduleText: {
+    color: Colors.text.secondary,
+    fontSize: Typography.sizes.caption,
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+    lineHeight: 20,
   },
 });

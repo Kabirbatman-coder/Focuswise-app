@@ -1,0 +1,67 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.focuswise.distractionshield" >
+4
+5    <uses-sdk android:minSdkVersion="24" />
+6
+7    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
+7-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:4:5-78
+7-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:4:22-75
+8    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+8-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:5:5-78
+8-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:5:22-75
+9    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+9-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:6:5-77
+9-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:6:22-74
+10    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+10-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:7:5-77
+10-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:7:22-74
+11    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+11-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:8:5-81
+11-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:8:22-78
+12
+13    <application>
+13-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:10:5-32:19
+14
+15        <!-- Accessibility Service for detecting app launches -->
+16        <service
+16-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:12:9-22:19
+17            android:name="com.focuswise.distractionshield.DistractionShieldAccessibilityService"
+17-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:13:13-66
+18            android:exported="true"
+18-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:14:13-36
+19            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" >
+19-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:15:13-79
+20            <intent-filter>
+20-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:16:13-18:29
+21                <action android:name="android.accessibilityservice.AccessibilityService" />
+21-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:17:17-92
+21-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:17:25-89
+22            </intent-filter>
+23
+24            <meta-data
+24-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:19:13-21:72
+25                android:name="android.accessibilityservice"
+25-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:20:17-60
+26                android:resource="@xml/accessibility_service_config" />
+26-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:21:17-69
+27        </service>
+28
+29        <!-- Overlay Activity for blocking -->
+30        <activity
+30-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:25:9-31:40
+31            android:name="com.focuswise.distractionshield.BlockingOverlayActivity"
+31-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:26:13-52
+32            android:excludeFromRecents="true"
+32-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:28:13-46
+33            android:exported="false"
+33-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:31:13-37
+34            android:launchMode="singleInstance"
+34-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:29:13-48
+35            android:taskAffinity=""
+35-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:30:13-36
+36            android:theme="@style/Theme.Transparent" />
+36-->C:\Users\kabir\Music\FocusWise\FocusWise\modules\distraction-shield-native\android\src\main\AndroidManifest.xml:27:13-53
+37    </application>
+38
+39</manifest>

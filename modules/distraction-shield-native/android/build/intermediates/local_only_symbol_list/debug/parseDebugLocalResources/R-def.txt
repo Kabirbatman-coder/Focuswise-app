@@ -1,0 +1,16 @@
+R_DEF: Internal format may change without notice
+local
+drawable button_primary
+id blocking_message
+id blocking_title
+id btn_end_session
+id btn_go_back
+layout blocking_overlay
+string accessibility_service_description
+string app_name
+string blocking_message
+string blocking_title
+string end_session_button
+string go_back_button
+style Theme.Transparent
+xml accessibility_service_config

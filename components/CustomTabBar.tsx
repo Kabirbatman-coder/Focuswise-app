@@ -77,7 +77,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
                         end={{ x: 1, y: 1 }}
                       >
                         {/* Abstract Sphere / Nucleus Icon */}
-                        <Ionicons name="aperture" size={28} color="#FFF" />
+                        <Ionicons name="aperture" size={22} color="#FFF" />
                       </LinearGradient>
                     </TouchableOpacity>
                   </Animated.View>
@@ -90,7 +90,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
             if (route.name === 'index') iconName = isFocused ? 'home' : 'home-outline';
             else if (route.name === 'calendar') iconName = isFocused ? 'calendar' : 'calendar-outline';
             else if (route.name === 'tasks') iconName = isFocused ? 'checkmark-circle' : 'checkmark-circle-outline';
-            else if (route.name === 'focus') iconName = isFocused ? 'shield' : 'shield-outline';
+            else if (route.name === 'energy') iconName = isFocused ? 'battery-charging' : 'battery-half-outline';
 
             return (
               <TouchableOpacity
@@ -147,28 +147,28 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   aiButtonWrapper: {
-    width: 70,
-    height: 70,
+    width: 54,
+    height: 54,
     justifyContent: 'center',
     alignItems: 'center',
-    // Push it up to float
-    marginTop: -20, 
+    // Push it up slightly but not too much
+    marginTop: -8, 
   },
   aiButtonContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     // Shadow for the glowing effect
     shadowColor: Colors.ai_chief.glow,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
-    shadowRadius: 10,
+    shadowRadius: 8,
     elevation: 5,
   },
   aiButton: {
     width: '100%',
     height: '100%',
-    borderRadius: 28,
+    borderRadius: 23,
     justifyContent: 'center',
     alignItems: 'center',
   }

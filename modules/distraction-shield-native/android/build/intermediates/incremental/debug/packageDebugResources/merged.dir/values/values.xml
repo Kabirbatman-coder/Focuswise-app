@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">FocusWise uses this service to detect when distracting apps are opened during focus sessions and help you stay on track.</string>
+    <string name="app_name">FocusWise Distraction Shield</string>
+    <string name="blocking_message">You\'re in a focus session right now.\nThis app is blocked until your session ends.</string>
+    <string name="blocking_title">Stay Focused! 🎯</string>
+    <string name="end_session_button">End Focus Session</string>
+    <string name="go_back_button">Go Back to Task</string>
+    <style name="Theme.Transparent" parent="@android:style/Theme.Translucent.NoTitleBar.Fullscreen">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+    </style>
+</resources>

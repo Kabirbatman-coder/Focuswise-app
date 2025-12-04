@@ -11,10 +11,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Typography, Spacing, BorderRadius } from '../../constants/theme';
+import { getApiUrl } from '../../constants/config';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { Platform } from 'react-native';
-const API_URL = Platform.OS === 'web' ? 'http://localhost:3000' : 'http://192.168.1.6:3000';
+import { TaskListSkeleton } from '@/components/ui/LoadingSkeleton';
+import { NoTasksEmpty } from '@/components/ui/EmptyState';
+import Animated, { FadeIn, FadeInDown, Layout } from 'react-native-reanimated';
 
 interface Task {
   id: string;
@@ -101,7 +102,7 @@ export default function TasksScreen() {
 
   const fetchTasks = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/ai/tasks`);
+      const response = await fetch(getApiUrl('/api/ai/tasks'));
       const data = await response.json();
       if (data.success) {
         setTasks(data.tasks);
@@ -137,7 +138,7 @@ export default function TasksScreen() {
     );
 
     try {
-      await fetch(`${API_URL}/api/ai/tasks/${taskId}`, {
+      await fetch(getApiUrl(`/api/ai/tasks/${taskId}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
@@ -159,10 +160,13 @@ export default function TasksScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.ai_chief.active_ring} />
-          <Text style={styles.loadingText}>Loading tasks...</Text>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>Tasks</Text>
+            <Text style={styles.headerSubtitle}>Loading...</Text>
+          </View>
         </View>
+        <TaskListSkeleton count={5} />
       </SafeAreaView>
     );
   }
@@ -183,22 +187,18 @@ export default function TasksScreen() {
       </View>
 
       {tasks.length === 0 ? (
-        <View style={styles.emptyState}>
-          <View style={styles.emptyIcon}>
-            <Ionicons name="checkbox-outline" size={48} color={Colors.text.tertiary} />
-          </View>
-          <Text style={styles.emptyTitle}>No tasks yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Ask the AI to create tasks for you!{'\n'}
-            Try: "Create a task to review the proposal"
-          </Text>
-        </View>
+        <NoTasksEmpty />
       ) : (
         <FlatList
           data={[...pendingTasks, ...completedTasks]}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TaskCard task={item} onToggle={toggleTask} />
+          renderItem={({ item, index }) => (
+            <Animated.View 
+              entering={FadeInDown.delay(index * 50).duration(300)}
+              layout={Layout.springify()}
+            >
+              <TaskCard task={item} onToggle={toggleTask} />
+            </Animated.View>
           )}
           contentContainerStyle={styles.listContent}
           refreshControl={
@@ -210,7 +210,9 @@ export default function TasksScreen() {
           }
           ListHeaderComponent={
             pendingTasks.length > 0 ? (
-              <Text style={styles.sectionTitle}>To Do</Text>
+              <Animated.Text style={styles.sectionTitle} entering={FadeIn.duration(300)}>
+                To Do
+              </Animated.Text>
             ) : null
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}

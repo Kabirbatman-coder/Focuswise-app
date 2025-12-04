@@ -56,7 +56,14 @@
           "backgroundColor": "#000000"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.919214418885-pf2ohdk52fburfhd9nt6ih3tvmt2dlfg"
+        }
+      ],
+      "./plugins/distraction-shield/withDistractionShield"
     ],
     "experiments": {
       "typedRoutes": true,
