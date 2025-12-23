@@ -14,7 +14,47 @@ if (!GEMINI_API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const model: GenerativeModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+// Use gemini-1.5-flash as primary (more stable quota), fallback to gemini-pro
+const model: GenerativeModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+// Retry helper for rate limit errors
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelayMs: number = 2000
+): Promise<T> {
+  let lastError: Error | undefined;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      const errorMsg = error.message || '';
+      
+      // Check if it's a rate limit error (429)
+      if (errorMsg.includes('429') || errorMsg.includes('quota') || errorMsg.includes('Too Many Requests')) {
+        const delay = baseDelayMs * Math.pow(2, attempt); // Exponential backoff
+        console.warn(`[CommandProcessor] Rate limited, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // For non-rate-limit errors, throw immediately
+      throw error;
+    }
+  }
+  
+  throw lastError || new Error('Max retries exceeded');
+}
+
+// Wrapper for model.generateContent with retry logic
+async function generateWithRetry(prompt: string): Promise<string> {
+  return retryWithBackoff(async () => {
+    const result = await model.generateContent(prompt);
+    return result.response.text();
+  });
+}
 
 // ==================== TYPES ====================
 
@@ -236,8 +276,7 @@ User command: "${userQuery}"
 Respond with ONLY the JSON object.`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = result.response.text();
+    const response = await generateWithRetry(prompt);
     
     let jsonStr = response.trim();
     if (jsonStr.startsWith('```json')) {
@@ -296,8 +335,8 @@ Generate a JSON response:
 Be concise. Founders value efficiency.`;
 
   try {
-    const result = await model.generateContent(prompt);
-    let jsonStr = result.response.text().trim();
+    const response = await generateWithRetry(prompt);
+    let jsonStr = response.trim();
     
     if (jsonStr.startsWith('```json')) {
       jsonStr = jsonStr.replace(/^```json\n?/, '').replace(/\n?```$/, '');
@@ -312,7 +351,13 @@ Be concise. Founders value efficiency.`;
       reasoning: parsed.reasoning,
       followUp: parsed.followUp,
     };
-  } catch (error) {
+  } catch (error: any) {
+    // Check for quota/rate limit errors
+    if (error.message?.includes('429') || error.message?.includes('quota')) {
+      return {
+        response: "⏳ I'm getting too many requests right now. Please try again in a few seconds.",
+      };
+    }
     return {
       response: success 
         ? "✓ Done! I've taken care of that."
@@ -353,8 +398,8 @@ Return JSON:
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
-    let jsonStr = result.response.text().trim();
+    const response = await generateWithRetry(prompt);
+    let jsonStr = response.trim();
     
     if (jsonStr.startsWith('```json')) {
       jsonStr = jsonStr.replace(/^```json\n?/, '').replace(/\n?```$/, '');
@@ -434,8 +479,8 @@ Return JSON:
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
-    let jsonStr = result.response.text().trim();
+    const response = await generateWithRetry(prompt);
+    let jsonStr = response.trim();
     
     if (jsonStr.startsWith('```json')) {
       jsonStr = jsonStr.replace(/^```json\n?/, '').replace(/\n?```$/, '');
@@ -857,8 +902,7 @@ ${context?.energyProfile?.weeklyTrend ? `\nEnergy trend: ${context.energyProfile
 
 Keep it actionable. Max 4 sentences. Include one specific recommendation.`;
 
-        const summaryResult = await model.generateContent(summaryPrompt);
-        const summary = summaryResult.response.text().trim();
+        const summary = await generateWithRetry(summaryPrompt);
         
         return {
           success: true,
@@ -904,8 +948,7 @@ ${context?.energyProfile?.peakPeriod ? `Current period vs peak: ${hour >= 7 && h
 
 Give ONE specific recommendation. Be direct. Max 2 sentences.`;
 
-        const focusResult = await model.generateContent(focusPrompt);
-        const suggestion = focusResult.response.text().trim();
+        const suggestion = await generateWithRetry(focusPrompt);
         
         return {
           success: true,
@@ -1069,12 +1112,12 @@ This doesn't match a known action. Generate a helpful response that:
 2. Offers relevant alternatives
 3. Stays brief (2 sentences max)`;
 
-        const fallbackResult = await model.generateContent(fallbackPrompt);
+        const fallbackResponse = await generateWithRetry(fallbackPrompt);
         
         return {
           success: false,
           intent: 'unknown',
-          response: fallbackResult.response.text().trim(),
+          response: fallbackResponse.trim(),
         };
       }
     }

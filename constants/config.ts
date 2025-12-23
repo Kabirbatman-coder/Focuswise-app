@@ -21,15 +21,18 @@ const getLocalIP = (): string => {
 // API Configuration
 const LOCAL_IP = getLocalIP();
 const DEV_PORT = 3000;
-// For production, we prefer a runtime env var so you don't have to change code
+
+// Prefer an explicit backend URL when provided (works in both dev and prod)
 // Example: EXPO_PUBLIC_API_URL="https://your-backend.onrender.com"
-const PROD_API_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'https://api.focuswise.app'; // Replace with actual production URL
+const ENV_API_URL = process.env.EXPO_PUBLIC_API_URL;
+const PROD_API_URL = 'https://api.focuswise.app'; // Replace with actual production URL
 
 export const API_CONFIG = {
-  BASE_URL: isDevelopment 
-    ? `http://${Platform.OS === 'web' ? 'localhost' : LOCAL_IP}:${DEV_PORT}`
-    : PROD_API_URL,
+  BASE_URL: ENV_API_URL
+    ? ENV_API_URL
+    : isDevelopment
+      ? `http://${Platform.OS === 'web' ? 'localhost' : LOCAL_IP}:${DEV_PORT}`
+      : PROD_API_URL,
   TIMEOUT: 30000, // 30 seconds
   RETRY_ATTEMPTS: 3,
 };
