@@ -9,7 +9,8 @@ interface LogContext {
   service?: string;
   userId?: string;
   action?: string;
-  duration?: number;
+  // Duration can be logged as a raw number of ms or as a formatted string like "123ms"
+  duration?: number | string;
   [key: string]: any;
 }
 
