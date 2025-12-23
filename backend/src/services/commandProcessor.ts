@@ -14,8 +14,8 @@ if (!GEMINI_API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-// Use gemini-1.5-flash as primary (more stable quota), fallback to gemini-pro
-const model: GenerativeModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+// Use a widely supported model ID for this library version
+const model: GenerativeModel = genAI.getGenerativeModel({ model: 'gemini-1.0-pro' });
 
 // Retry helper for rate limit errors
 async function retryWithBackoff<T>(
