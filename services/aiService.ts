@@ -1,7 +1,7 @@
 // AI Service - Frontend API calls to backend
 // This service handles all communication with the AI backend
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+import { getApiUrl } from '@/constants/config';
 
 export interface AICommandResponse {
   success: boolean;
@@ -38,7 +38,7 @@ export async function sendAICommand(
   userId?: string
 ): Promise<AICommandResponse> {
   try {
-    const response = await fetch(`${API_URL}/api/ai/command`, {
+    const response = await fetch(getApiUrl('/api/ai/command'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -69,7 +69,7 @@ export async function sendAICommand(
 // Get all tasks for the user
 export async function getTasks(userId?: string): Promise<TasksResponse> {
   try {
-    const response = await fetch(`${API_URL}/api/ai/tasks`, {
+    const response = await fetch(getApiUrl('/api/ai/tasks'), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -101,7 +101,7 @@ export async function createTask(task: {
   estimatedMinutes?: number;
 }): Promise<{ success: boolean; task?: Task; error?: string }> {
   try {
-    const response = await fetch(`${API_URL}/api/ai/tasks`, {
+    const response = await fetch(getApiUrl('/api/ai/tasks'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ export async function updateTask(
   updates: Partial<Task>
 ): Promise<{ success: boolean; task?: Task; error?: string }> {
   try {
-    const response = await fetch(`${API_URL}/api/ai/tasks/${taskId}`, {
+    const response = await fetch(getApiUrl(`/api/ai/tasks/${taskId}`), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -156,7 +156,7 @@ export async function deleteTask(
   taskId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${API_URL}/api/ai/tasks/${taskId}`, {
+    const response = await fetch(getApiUrl(`/api/ai/tasks/${taskId}`), {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',

@@ -13,9 +13,17 @@ if (!GEMINI_API_KEY) {
   console.error('[CommandProcessor] ⚠️  WARNING: GEMINI_API_KEY is not set!');
 }
 
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-// Use a widely supported model ID for this library version
-const model: GenerativeModel = genAI.getGenerativeModel({ model: 'gemini-1.0-pro' });
+// Use the stable v1 Gemini API with a free/cheap model
+const genAI = new GoogleGenerativeAI({
+  apiKey: GEMINI_API_KEY,
+  apiVersion: 'v1',
+});
+
+// Use a widely supported, fast, and lower-cost model
+// See: https://ai.google.dev/gemini-api/docs/models/gemini
+const model: GenerativeModel = genAI.getGenerativeModel({
+  model: 'gemini-1.5-flash',
+});
 
 // Retry helper for rate limit errors
 async function retryWithBackoff<T>(
