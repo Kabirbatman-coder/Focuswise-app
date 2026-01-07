@@ -19,11 +19,8 @@ if (!GEMINI_API_KEY) {
 
 // SDK v0.21 constructor takes just the API key string
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-// Use a widely supported model ID for this SDK / API version
-// Note: for v1beta, use the "-latest" suffix
-const model: GenerativeModel = genAI.getGenerativeModel({
-  model: 'gemini-1.5-flash-latest',
-});
+// Use gemini-pro - the most stable, widely supported model that works with v1beta
+const model: GenerativeModel = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
 // Retry helper for rate limit errors
 async function retryWithBackoff<T>(
