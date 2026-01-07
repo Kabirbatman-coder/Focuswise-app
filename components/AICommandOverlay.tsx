@@ -175,9 +175,21 @@ export function AICommandOverlay() {
   });
     } catch (error: any) {
       console.error('[AIOverlay] Error sending command:', error);
+      console.error('[AIOverlay] API URL used:', getApiUrl('/api/ai/command'));
+      
+      // Better error message based on error type
+      let errorMessage = "I'm having trouble connecting to the server.";
+      if (error.message?.includes('Network request failed') || error.message?.includes('Failed to fetch')) {
+        errorMessage = "Can't reach the backend server. Check your internet connection or verify the backend URL is correct.";
+      } else if (error.message?.includes('429')) {
+        errorMessage = "The AI service is rate-limited. Please try again in a few seconds.";
+      } else {
+        errorMessage = `Connection error: ${error.message || 'Unknown error'}`;
+      }
+      
       addMessage({
         role: 'assistant',
-        content: "I'm having trouble connecting to the server. Make sure the backend is running on your computer.",
+        content: errorMessage,
       });
     } finally {
       setIsProcessing(false);

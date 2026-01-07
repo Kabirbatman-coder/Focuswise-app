@@ -25,17 +25,23 @@ const DEV_PORT = 3000;
 // Prefer an explicit backend URL when provided (works in both dev and prod)
 // Example: EXPO_PUBLIC_API_URL="https://your-backend.onrender.com"
 const ENV_API_URL = process.env.EXPO_PUBLIC_API_URL;
-const PROD_API_URL = 'https://api.focuswise.app'; // Replace with actual production URL
+
+// Render backend URL - your deployed backend
+const DEFAULT_RENDER_URL = 'https://focuswise-app.onrender.com';
+
+const PROD_API_URL = DEFAULT_RENDER_URL; // Use Render URL as default for production
 
 export const API_CONFIG = {
-  BASE_URL: ENV_API_URL
-    ? ENV_API_URL
-    : isDevelopment
-      ? `http://${Platform.OS === 'web' ? 'localhost' : LOCAL_IP}:${DEV_PORT}`
-      : PROD_API_URL,
+  // Priority: 1) Explicit env var, 2) Render URL (default), 3) Local dev (only if explicitly set)
+  BASE_URL: ENV_API_URL || DEFAULT_RENDER_URL,
   TIMEOUT: 30000, // 30 seconds
   RETRY_ATTEMPTS: 3,
 };
+
+// Log the API URL being used (for debugging)
+if (__DEV__) {
+  console.log('[API Config] Using backend URL:', API_CONFIG.BASE_URL);
+}
 
 // App Configuration
 export const APP_CONFIG = {
