@@ -7,22 +7,22 @@ import { generateSchedule } from './schedulerService';
 // Initialize Gemini AI
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
-console.log(`[CommandProcessor] Gemini API Key: ${GEMINI_API_KEY ? `SET (${GEMINI_API_KEY.length} chars)` : 'NOT SET'}`);
+console.log(
+  `[CommandProcessor] Gemini API Key: ${
+    GEMINI_API_KEY ? `SET (${GEMINI_API_KEY.length} chars)` : 'NOT SET'
+  }`,
+);
 
 if (!GEMINI_API_KEY) {
   console.error('[CommandProcessor] ⚠️  WARNING: GEMINI_API_KEY is not set!');
 }
 
-// Use the stable v1 Gemini API with a free/cheap model
-const genAI = new GoogleGenerativeAI({
-  apiKey: GEMINI_API_KEY,
-  apiVersion: 'v1',
-});
-
-// Use a widely supported, fast, and lower-cost model
-// See: https://ai.google.dev/gemini-api/docs/models/gemini
+// SDK v0.21 constructor takes just the API key string
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+// Use a widely supported model ID for this SDK / API version
+// Note: for v1beta, use the "-latest" suffix
 const model: GenerativeModel = genAI.getGenerativeModel({
-  model: 'gemini-1.5-flash',
+  model: 'gemini-1.5-flash-latest',
 });
 
 // Retry helper for rate limit errors
